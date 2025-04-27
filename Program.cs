@@ -15,7 +15,7 @@ var aaveMonitor = new AaveMonitor(
 
 //----------------------------------------------
 
-var borrowerFetcher = new BorrowerFetcher("https://api.thegraph.com/subgraphs/name/aave/protocol-v3");
+//var borrowerFetcher = new BorrowerFetcher("https://api.thegraph.com/subgraphs/name/aave/protocol-v3");
 
 //var rankedBorrowers = await borrowerFetcher.FetchAndRankDangerousBorrowersAsync(1000, 10);
 
@@ -29,10 +29,13 @@ var borrowerFetcher = new BorrowerFetcher("https://api.thegraph.com/subgraphs/na
 
 //----------------------------------------------
 
-var monitor = new LiquidationMonitor(borrowerFetcher, pageSize: 1000, maxPages: 10, refreshDelaySeconds: 60);
+var borrowerFetcher = new BorrowerFetcher("https://api.thegraph.com/subgraphs/name/aave/protocol-v3");
+var notifier = new Notifier();
+
+var monitor = new LiquidationMonitor(borrowerFetcher, notifier, pageSize: 1000, maxPages: 10, refreshDelaySeconds: 60);
 
 var cancellationTokenSource = new CancellationTokenSource();
 
 await monitor.StartMonitoringAsync(cancellationTokenSource.Token);
 
-// To stop safely: cancellationTokenSource.Cancel();
+// cancellationTokenSource.Cancel(); // uncomment to stop monitoring

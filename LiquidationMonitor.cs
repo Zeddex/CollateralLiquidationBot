@@ -4,13 +4,15 @@ using Nethereum.Web3;
 public class LiquidationMonitor
 {
     private readonly BorrowerFetcher _borrowerFetcher;
+    private readonly Notifier _notifier;
     private readonly int _pageSize;
     private readonly int _maxPages;
     private readonly int _refreshDelaySeconds;
 
-    public LiquidationMonitor(BorrowerFetcher borrowerFetcher, int pageSize = 1000, int maxPages = 10, int refreshDelaySeconds = 60)
+    public LiquidationMonitor(BorrowerFetcher borrowerFetcher, Notifier notifier, int pageSize = 1000, int maxPages = 10, int refreshDelaySeconds = 60)
     {
         _borrowerFetcher = borrowerFetcher;
+        _notifier = notifier;
         _pageSize = pageSize;
         _maxPages = maxPages;
         _refreshDelaySeconds = refreshDelaySeconds;
@@ -34,6 +36,7 @@ public class LiquidationMonitor
                 else
                 {
                     Console.WriteLine($"🎯 Top Dangerous Borrowers:");
+
                     foreach (var borrower in rankedBorrowers)
                     {
                         decimal debtETH = Web3.Convert.FromWei(BigInteger.Parse(borrower.TotalDebtETH));
@@ -41,7 +44,13 @@ public class LiquidationMonitor
 
                         Console.WriteLine($"👤 {borrower.Id} | Debt: {debtETH:F4} ETH | Health: {health:F4}");
 
-                        // Optional future: trigger flashloan here if health < 1.0
+                        if (health < 1.0m)
+                        {
+                            string alert = $"🚨 *Liquidation Opportunity!*\n👤 {borrower.Id}\n💰 Debt: {debtETH:F4} ETH\n❤️ Health Factor: {health:F4}";
+                            await _notifier.SendMessageAsync(alert);
+                        }
+
+                        // trigger flashloan here if health < 1.0
                     }
                 }
             }
