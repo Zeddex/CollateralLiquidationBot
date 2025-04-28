@@ -32,7 +32,13 @@ var aaveMonitor = new AaveMonitor(
 var borrowerFetcher = new BorrowerFetcher("https://api.thegraph.com/subgraphs/name/aave/protocol-v3");
 var notifier = new Notifier();
 
-var monitor = new LiquidationMonitor(borrowerFetcher, notifier, pageSize: 1000, maxPages: 10, refreshDelaySeconds: 60);
+var liquidationSender = new LiquidationSender(
+    Environment.GetEnvironmentVariable("RPC_URL_ARBITRUM"),
+    Environment.GetEnvironmentVariable("LIQUIDATION_CONTRACT_ARBITRUM"),
+    Environment.GetEnvironmentVariable("PRIVATE_KEY")
+);
+
+var monitor = new LiquidationMonitor(borrowerFetcher, liquidationSender, notifier, pageSize: 1000, maxPages: 10, refreshDelaySeconds: 60);
 
 var cancellationTokenSource = new CancellationTokenSource();
 

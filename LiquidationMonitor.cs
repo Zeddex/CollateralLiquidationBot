@@ -5,13 +5,15 @@ public class LiquidationMonitor
 {
     private readonly BorrowerFetcher _borrowerFetcher;
     private readonly Notifier _notifier;
+    private readonly LiquidationSender _liquidationSender;
     private readonly int _pageSize;
     private readonly int _maxPages;
     private readonly int _refreshDelaySeconds;
 
-    public LiquidationMonitor(BorrowerFetcher borrowerFetcher, Notifier notifier, int pageSize = 1000, int maxPages = 10, int refreshDelaySeconds = 60)
+    public LiquidationMonitor(BorrowerFetcher borrowerFetcher, LiquidationSender liquidationSender, Notifier notifier, int pageSize = 1000, int maxPages = 10, int refreshDelaySeconds = 60)
     {
         _borrowerFetcher = borrowerFetcher;
+        _liquidationSender = liquidationSender;
         _notifier = notifier;
         _pageSize = pageSize;
         _maxPages = maxPages;
@@ -50,7 +52,13 @@ public class LiquidationMonitor
                             await _notifier.SendMessageAsync(alert);
                         }
 
-                        // trigger flashloan here if health < 1.0
+                        await _liquidationSender.TriggerLiquidationAsync(
+                            borrower.Id,
+                            debtAssetAddress,       // e.g. USDC address
+                            collateralAssetAddress, // e.g. WETH address
+                            debtToCoverHuman,        // amount you want to repay (can be 50% of debt)
+                            debtAssetDecimals        // 6 for USDC, 18 for DAI, etc.
+                        );
                     }
                 }
             }
