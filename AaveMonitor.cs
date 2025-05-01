@@ -2,6 +2,7 @@
 using Nethereum.Web3;
 using Nethereum.Contracts;
 using Nethereum.ABI.FunctionEncoding.Attributes;
+using Nethereum.Hex.HexTypes;
 
 public class AaveMonitor
 {
@@ -66,15 +67,12 @@ public class AaveMonitor
     {
         Console.WriteLine($"Triggering liquidation for {borrower}...");
 
-        // Here you would call your smart contract
-        // E.g., send transaction to liquidation contract with borrower address
-
-        // Example only: real implementation needs ABI + Flashloan start params
         // await liquidationContract.StartLiquidation(borrower);
     }
 }
 
-public class UserAccountDataDTO
+[FunctionOutput]
+public class UserAccountDataDTO : IFunctionOutputDTO
 {
     [Parameter("uint256", "totalCollateralBase")]
     public BigInteger TotalCollateralBase { get; set; }

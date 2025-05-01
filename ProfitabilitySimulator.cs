@@ -5,6 +5,7 @@ using Nethereum.Util;
 public class ProfitabilitySimulator
 {
     private readonly Web3 _web3;
+    private readonly string _dexRouterAddress;
     private readonly decimal _flashloanPremiumPercent;
     private readonly decimal _liquidationBonusPercent;
     private readonly decimal _slippagePercent;
@@ -15,14 +16,16 @@ public class ProfitabilitySimulator
 
     public ProfitabilitySimulator(
         Web3 web3,
+        string dexRouterAddress,
         decimal flashloanPremiumPercent = 0.09m,
         decimal liquidationBonusPercent = 5.0m,
         decimal slippagePercent = 1.0m,
-        decimal gasPriceGwei = 30,
-        long estimatedGasUnits = 400_000
+        decimal gasPriceGwei = 1,
+        long estimatedGasUnits = 500_000
     )
     {
         _web3 = web3;
+        _dexRouterAddress = dexRouterAddress;
         _flashloanPremiumPercent = flashloanPremiumPercent;
         _liquidationBonusPercent = liquidationBonusPercent;
         _slippagePercent = slippagePercent;
@@ -31,14 +34,13 @@ public class ProfitabilitySimulator
     }
 
     public async Task<decimal> SimulateProfitAsync(
-        decimal debtAmount, // in human units (e.g., 5000 USDC)
+        decimal debtAmount, // (e.g., 5000 USDC)
         int debtAssetDecimals,
         string collateralAsset,
-        string debtAsset,
-        string dexRouterAddress
+        string debtAsset
     )
     {
-        var contract = _web3.Eth.GetContract(_routerV2Abi, dexRouterAddress);
+        var contract = _web3.Eth.GetContract(_routerV2Abi, _dexRouterAddress);
         var getAmountsOutFunc = contract.GetFunction("getAmountsOut");
 
         var debtAmountWei = UnitConversion.Convert.ToWei(debtAmount, debtAssetDecimals);
@@ -53,13 +55,10 @@ public class ProfitabilitySimulator
 
         var expectedSwapOutput = Web3.Convert.FromWei(expectedAmounts[1], debtAssetDecimals);
 
-        // Apply liquidation bonus
         var collateralReceived = debtAmount * (1 + _liquidationBonusPercent / 100m);
 
-        // Apply slippage
         var collateralAfterSlippage = collateralReceived * (1 - _slippagePercent / 100m);
 
-        // Flashloan premium
         var flashloanCost = debtAmount * (_flashloanPremiumPercent / 100m);
 
         // Gas cost (in ETH)
@@ -81,11 +80,10 @@ public class ProfitabilitySimulator
         decimal debtAmount,
         int debtAssetDecimals,
         string collateralAsset,
-        string debtAsset,
-        string dexRouterAddress
+        string debtAsset
     )
     {
-        var profit = await SimulateProfitAsync(debtAmount, debtAssetDecimals, collateralAsset, debtAsset, dexRouterAddress);
+        var profit = await SimulateProfitAsync(debtAmount, debtAssetDecimals, collateralAsset, debtAsset);
         return profit > 0;
     }
 }

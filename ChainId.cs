@@ -1,8 +1,8 @@
 ﻿public enum ChainId
 {
     Ethereum = 1,
-    Polygon = 137,
+    Optimism = 10,
     BSC = 56,
+    Polygon = 137,
     Arbitrum = 42161,
-    Optimism = 10
 }
