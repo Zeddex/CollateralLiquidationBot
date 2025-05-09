@@ -4,7 +4,7 @@ var root = Directory.GetCurrentDirectory();
 var dotenv = Path.Combine(root, ".env");
 DotEnv.Load(dotenv);
 
-string? privateKey = Environment.GetEnvironmentVariable("WALLET_PRIVATE_KEY");
+string privateKey = Environment.GetEnvironmentVariable("WALLET_PRIVATE_KEY");
 
 string? rpcArbitrum = Environment.GetEnvironmentVariable("RPC_URL_ARBITRUM");
 string? rpcEthereum = Environment.GetEnvironmentVariable("RPC_URL_ETHEREUM");
@@ -18,9 +18,9 @@ string aaveDataProviderArbitrum = "0x14496b405D62c24F91f04Cda1c69Dc526D56fDE5";
 string aaveDataProviderEthereum = "0x497a1994c46d4f6C864904A9f1fac6328Cb7C8a6";
 string aaveDataProviderPolygon = "0x14496b405D62c24F91f04Cda1c69Dc526D56fDE5";
 
-string? liquidationContractArbitrum = Environment.GetEnvironmentVariable("LIQUIDATION_CONTRACT_ARBITRUM");
-string? liquidationContractEthereum = Environment.GetEnvironmentVariable("LIQUIDATION_CONTRACT_ETHEREUM");
-string? liquidationContractPolygon = Environment.GetEnvironmentVariable("LIQUIDATION_CONTRACT_POLYGON");
+string liquidationContractArbitrum = Environment.GetEnvironmentVariable("LIQUIDATION_CONTRACT_ARBITRUM");
+//string liquidationContractEthereum = Environment.GetEnvironmentVariable("LIQUIDATION_CONTRACT_ETHEREUM");
+//string liquidationContractPolygon = Environment.GetEnvironmentVariable("LIQUIDATION_CONTRACT_POLYGON");
 
 string thegraphApiKey = Environment.GetEnvironmentVariable("THEGRAPH_API_KEY");
 
@@ -52,15 +52,17 @@ var priceProvider = new ChainlinkPriceProvider(web3Eth, new Dictionary<string, s
 //decimal aaveEthPrice = await priceProvider.GetPriceInEthAsync("0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9");
 
 var dataProvider = new AaveDataProvider(web3Eth, aaveDataProviderEthereum);
-var fetcher = new BorrowerFetcher(aaveV3EthereumSubgraphUrl, priceProvider, dataProvider);
-var borrowers = await fetcher.FetchBorrowersAsync();
 
+var fetcher = new BorrowerFetcher(aaveV3EthereumSubgraphUrl);
+
+//var borrowers = await fetcher.FetchSortedBorrowersAsync();
 //foreach (var b in borrowers)
 //{
 //    Console.WriteLine($"Borrower {b.Borrower} | Owes {b.DebtAmount} {b.DebtAssetSymbol}, collateral {b.CollateralAmount} {b.CollateralAssetSymbol}");
 //}
 
 var notifier = new Notifier();
+
 var gasManager = new GasPriceManager(web3Arb, 10); // Only liquidate if gas <= 10 gwei
 
 string routerAddress = Dex.GetRouterV2Address(ChainId.Arbitrum);
