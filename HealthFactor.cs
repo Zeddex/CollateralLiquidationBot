@@ -53,7 +53,7 @@
         return borrowersWithHealth;
     }
 
-    private decimal CalculateHealthFactor(HealthFactorInput input)
+    public decimal CalculateHealthFactor(HealthFactorInput input)
     {
         decimal totalCollateralETH = input.Deposits
             .Where(d => d.IsActive && !d.IsFrozen && d.UsageAsCollateral)

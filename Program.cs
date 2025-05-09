@@ -125,9 +125,12 @@ await monitor.StartMonitoringAsync(cancellationTokenSource.Token);
 //    {
 //        new TokenPosition { AssetAddress = "0xDebt1", Amount = 700m, PriceInEth = 0.00142857m } // $1000
 //    }
-//};
+//}
+//;
 
-//var healthFactor = HealthFactorCalculator.CalculateHealthFactor(input);
+//var healthFactor = new HealthFactor(priceProvider, dataProvider);
+//var health = healthFactor.CalculateHealthFactor(input);
+
 //Console.WriteLine($"Health Factor: {healthFactor:F4}");
 
 //----------------------------------------------
