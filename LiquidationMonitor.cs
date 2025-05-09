@@ -44,7 +44,8 @@ public class LiquidationMonitor
             try
             {
                 Console.WriteLine($"Fetching and ranking dangerous borrowers at {DateTime.UtcNow}...");
-                var rankedBorrowers = await _borrowerFetcher.FetchAndRankDangerousBorrowersAsync(_pageSize, _maxPages);
+
+                var rankedBorrowers = await _borrowerFetcher.FetchSortedBorrowersAsync(_pageSize, _maxPages);
 
                 if (rankedBorrowers.Count == 0)
                 {
@@ -52,14 +53,14 @@ public class LiquidationMonitor
                 }
                 else
                 {
-                    Console.WriteLine($"Top Dangerous Borrowers:");
+                    Console.WriteLine("Top Dangerous Borrowers:");
 
                     foreach (var borrower in rankedBorrowers)
                     {
-                        decimal debtETH = Web3.Convert.FromWei(BigInteger.Parse(borrower.TotalDebtETH));
+                        decimal debtETH = Web3.Convert.FromWei(BigInteger.Parse(borrower.DebtAmount));
                         decimal health = Web3.Convert.FromWei(BigInteger.Parse(borrower.HealthFactor));
 
-                        Console.WriteLine($"{borrower.Id} | Debt: {debtETH:F4} ETH | Health: {health:F4}");
+                        Console.WriteLine($"{borrower.Borrower} | Debt: {debtETH:F4} ETH | Health: {health:F4}");
 
                         if (health >= 1.0m || debtETH <= 0.1m)
                         {
@@ -79,7 +80,7 @@ public class LiquidationMonitor
 
                         if (borrowerReserveData == null)
                         {
-                            Console.WriteLine($"Failed to fetch reserves for {borrower.Id}");
+                            Console.WriteLine($"Failed to fetch reserves for {borrower.Borrower}");
                             continue;
                         }
 
@@ -88,7 +89,7 @@ public class LiquidationMonitor
 
                         if (string.IsNullOrEmpty(debtAssetAddress) || string.IsNullOrEmpty(collateralAssetAddress))
                         {
-                            Console.WriteLine($"Missing debt/collateral asset addresses for {borrower.Id}");
+                            Console.WriteLine($"Missing debt/collateral asset addresses for {borrower.Borrower}");
                             continue;
                         }
 
@@ -123,11 +124,11 @@ public class LiquidationMonitor
                             continue;
                         }
 
-                        string alert = $"*Liquidation Opportunity!*\n{borrower.Id}\nDebt: {debtETH:F4} ETH\n❤Health Factor: {health:F4}";
+                        string alert = $"*Liquidation Opportunity!*\n{borrower.Borrower}\nDebt: {debtETH:F4} ETH\n❤Health Factor: {health:F4}";
                         await _notifier.SendMessageAsync(alert);
 
                         await _liquidationExecutor.TriggerLiquidationAsync(
-                            borrower.Id,
+                            borrower.Borrower,
                             debtAssetAddress,
                             collateralAssetAddress,
                             debtToCover,
