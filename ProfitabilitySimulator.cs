@@ -2,36 +2,29 @@
 using Nethereum.Web3;
 using Nethereum.Util;
 
-public class ProfitabilitySimulator
+public class ProfitabilitySimulator(
+    Web3 web3,
+    string dexRouterAddress,
+    decimal flashloanPremiumPercent = 0.09m,
+    decimal liquidationBonusPercent = 5.0m,
+    decimal slippagePercent = 1.0m,
+    decimal gasPriceGwei = 1,
+    long estimatedGasUnits = 500_000)
 {
-    private readonly Web3 _web3;
-    private readonly string _dexRouterAddress;
-    private readonly decimal _flashloanPremiumPercent;
-    private readonly decimal _liquidationBonusPercent;
-    private readonly decimal _slippagePercent;
-    private readonly decimal _gasPriceGwei;
-    private readonly long _estimatedGasUnits;
-
-    private static readonly string _routerV2Abi = "[{\"name\":\"getAmountsOut\",\"type\":\"function\",\"stateMutability\":\"view\",\"inputs\":[{\"name\":\"amountIn\",\"type\":\"uint256\"},{\"name\":\"path\",\"type\":\"address[]\"}],\"outputs\":[{\"name\":\"amounts\",\"type\":\"uint256[]\"}]}]";
-
-    public ProfitabilitySimulator(
-        Web3 web3,
-        string dexRouterAddress,
-        decimal flashloanPremiumPercent = 0.09m,
-        decimal liquidationBonusPercent = 5.0m,
-        decimal slippagePercent = 1.0m,
-        decimal gasPriceGwei = 1,
-        long estimatedGasUnits = 500_000
-    )
-    {
-        _web3 = web3;
-        _dexRouterAddress = dexRouterAddress;
-        _flashloanPremiumPercent = flashloanPremiumPercent;
-        _liquidationBonusPercent = liquidationBonusPercent;
-        _slippagePercent = slippagePercent;
-        _gasPriceGwei = gasPriceGwei;
-        _estimatedGasUnits = estimatedGasUnits;
-    }
+    private static readonly string _routerV2Abi = @"[
+        {
+            'name':'getAmountsOut',
+            'type':'function',
+            'stateMutability':'view',
+            'inputs':[
+                {'name':'amountIn','type':'uint256'},
+                {'name':'path','type':'address[]'}
+            ],
+            'outputs':[
+                {'name':'amounts','type':'uint256[]'}
+            ]
+        }
+    ]";
 
     public async Task<decimal> SimulateProfitAsync(
         decimal debtAmount, // (e.g., 5000 USDC)
@@ -40,7 +33,7 @@ public class ProfitabilitySimulator
         string debtAsset
     )
     {
-        var contract = _web3.Eth.GetContract(_routerV2Abi, _dexRouterAddress);
+        var contract = web3.Eth.GetContract(_routerV2Abi, dexRouterAddress);
         var getAmountsOutFunc = contract.GetFunction("getAmountsOut");
 
         var debtAmountWei = UnitConversion.Convert.ToWei(debtAmount, debtAssetDecimals);
@@ -55,15 +48,15 @@ public class ProfitabilitySimulator
 
         var expectedSwapOutput = Web3.Convert.FromWei(expectedAmounts[1], debtAssetDecimals);
 
-        var collateralReceived = debtAmount * (1 + _liquidationBonusPercent / 100m);
+        var collateralReceived = debtAmount * (1 + liquidationBonusPercent / 100m);
 
-        var collateralAfterSlippage = collateralReceived * (1 - _slippagePercent / 100m);
+        var collateralAfterSlippage = collateralReceived * (1 - slippagePercent / 100m);
 
-        var flashloanCost = debtAmount * (_flashloanPremiumPercent / 100m);
+        var flashloanCost = debtAmount * (flashloanPremiumPercent / 100m);
 
         // Gas cost (in ETH)
-        var gasPriceWei = UnitConversion.Convert.ToWei(_gasPriceGwei, UnitConversion.EthUnit.Gwei);
-        var gasCostEth = (decimal)(_estimatedGasUnits * gasPriceWei) / (decimal)Math.Pow(10, 18);
+        var gasPriceWei = UnitConversion.Convert.ToWei(gasPriceGwei, UnitConversion.EthUnit.Gwei);
+        var gasCostEth = (decimal)(estimatedGasUnits * gasPriceWei) / (decimal)Math.Pow(10, 18);
 
         // Gross profit
         var grossProfit = collateralAfterSlippage - (debtAmount + flashloanCost);

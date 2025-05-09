@@ -8,7 +8,16 @@ public class DecimalsMap
     public ChainId CurrentNetwork { get; set; }
 
     private const string ERC20_ABI = @"[
-        { 'constant': true, 'inputs': [], 'name': 'decimals', 'outputs': [{ 'name': '', 'type': 'uint8' }], 'payable': false, 'stateMutability': 'view', 'type': 'function' }
+        { 
+            'constant': true, 
+            'inputs': [], 
+            'name': 'decimals', 
+            'outputs': [
+                { 'name': '', 'type': 'uint8' }
+            ], 
+            'payable': false, 
+            'stateMutability': 'view', 
+            'type': 'function' }
     ]";
 
     public DecimalsMap(Dictionary<ChainId, string> rpcUrls, ChainId currentNetwork)
@@ -68,12 +77,12 @@ public class DecimalsMap
             // cache it
             _chainDecimals[CurrentNetwork][tokenAddress] = decimals;
 
-            Console.WriteLine($"🔍 Decimals fetched on {CurrentNetwork} for {tokenAddress}: {decimals}");
+            Console.WriteLine($"Decimals fetched on {CurrentNetwork} for {tokenAddress}: {decimals}");
             return decimals;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Failed to fetch decimals for {tokenAddress} on {CurrentNetwork}: {ex.Message}");
+            Console.WriteLine($"Failed to fetch decimals for {tokenAddress} on {CurrentNetwork}: {ex.Message}");
             throw;
         }
     }

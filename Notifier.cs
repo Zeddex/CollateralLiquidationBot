@@ -1,7 +1,7 @@
 ﻿public class Notifier
 {
-    private readonly string _telegramBotToken = Environment.GetEnvironmentVariable("TG_BOT_TOKEN");
-    private readonly string _chatId = Environment.GetEnvironmentVariable("TG_CHAT_ID");
+    private readonly string? _telegramBotToken = Environment.GetEnvironmentVariable("TG_BOT_TOKEN");
+    private readonly string? _chatId = Environment.GetEnvironmentVariable("TG_CHAT_ID");
 
     public async Task SendMessageAsync(string message)
     {
@@ -22,7 +22,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Telegram Error: {ex.Message}");
+            Console.WriteLine($"Telegram Error: {ex.Message}");
         }
     }
 }

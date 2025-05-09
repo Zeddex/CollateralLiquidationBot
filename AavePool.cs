@@ -1,41 +1,28 @@
 ﻿using System.Numerics;
 using Nethereum.Web3;
-using Nethereum.Contracts;
 using Nethereum.ABI.FunctionEncoding.Attributes;
-using Nethereum.Hex.HexTypes;
 
-public class AaveMonitor
+public class AavePool(Web3 web3, LiquidationExecutor liquidationExecutor, string poolAddress)
 {
-    private readonly Web3 _web3;
-    private readonly string _lendingPoolAddress;
-    private readonly string _liquidationContractAddress;
-
     private static readonly string LendingPoolAbi = @"[
-      {
+    {
         'inputs': [{ 'internalType': 'address','name': 'user','type': 'address' }],
         'name': 'getUserAccountData',
         'outputs': [
-          { 'internalType': 'uint256','name': 'totalCollateralBase','type': 'uint256' },
-          { 'internalType': 'uint256','name': 'totalDebtBase','type': 'uint256' },
-          { 'internalType': 'uint256','name': 'availableBorrowsBase','type': 'uint256' },
-          { 'internalType': 'uint256','name': 'currentLiquidationThreshold','type': 'uint256' },
-          { 'internalType': 'uint256','name': 'ltv','type': 'uint256' },
-          { 'internalType': 'uint256','name': 'healthFactor','type': 'uint256' }
+            { 'internalType': 'uint256','name': 'totalCollateralBase','type': 'uint256' },
+            { 'internalType': 'uint256','name': 'totalDebtBase','type': 'uint256' },
+            { 'internalType': 'uint256','name': 'availableBorrowsBase','type': 'uint256' },
+            { 'internalType': 'uint256','name': 'currentLiquidationThreshold','type': 'uint256' },
+            { 'internalType': 'uint256','name': 'ltv','type': 'uint256' },
+            { 'internalType': 'uint256','name': 'healthFactor','type': 'uint256' }
         ],
         'stateMutability': 'view',
         'type': 'function'
-      }]";
-
-    public AaveMonitor(string rpcUrl, string lendingPoolAddress, string liquidationContractAddress)
-    {
-        _web3 = new Web3(rpcUrl);
-        _lendingPoolAddress = lendingPoolAddress;
-        _liquidationContractAddress = liquidationContractAddress;
-    }
+    }]";
 
     public async Task MonitorBorrowerAsync(string borrowerAddress)
     {
-        var contract = _web3.Eth.GetContract(LendingPoolAbi, _lendingPoolAddress);
+        var contract = web3.Eth.GetContract(LendingPoolAbi, poolAddress);
         var func = contract.GetFunction("getUserAccountData");
 
         var output = await func.CallDeserializingToObjectAsync<UserAccountDataDTO>(borrowerAddress);
@@ -63,11 +50,17 @@ public class AaveMonitor
         await Task.WhenAll(tasks);
     }
 
-    private async Task TriggerLiquidationAsync(string borrower)
+    private async Task TriggerLiquidationAsync(string borrowerAddress)
     {
-        Console.WriteLine($"Triggering liquidation for {borrower}...");
+        Console.WriteLine($"Triggering liquidation for {borrowerAddress}...");
 
-        // await liquidationContract.StartLiquidation(borrower);
+        //await liquidationExecutor.TriggerLiquidationAsync(
+        //    borrowerAddress,
+        //    debtAssetAddress,
+        //    collateralAssetAddress,
+        //    debtToCover,
+        //    debtAssetDecimals
+        //);
     }
 }
 

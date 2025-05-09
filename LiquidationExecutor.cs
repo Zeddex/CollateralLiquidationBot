@@ -2,9 +2,9 @@
 using Nethereum.Web3.Accounts;
 using Nethereum.Hex.HexTypes;
 
-public class LiquidationSender
+public class LiquidationExecutor(Web3 web3, string privateKey, string liquidationContract)
 {
-    private static readonly string LiquidationAbi = @"[
+    private static readonly string Abi = @"[
       {
         'inputs': [
           { 'internalType': 'address','name': 'borrower','type': 'address' },
@@ -19,22 +19,11 @@ public class LiquidationSender
       }
     ]";
 
-    private readonly string _contractAddress;
-
-    public Web3 Web3 { get; set; }
-    public Account Account { get; set; }
-
-    public LiquidationSender(string jsonRpc, string liquidationContract, string privateKey)
-    {
-        _contractAddress = liquidationContract;
-
-        Account = new Account(privateKey);
-        Web3 = new Web3(Account, jsonRpc);
-    }
+    public Account Account { get; set; } = new(privateKey);
 
     public async Task TriggerLiquidationAsync(string borrower, string debtAsset, string collateralAsset, decimal debtToCoverHuman, int debtDecimals)
     {
-        var contract = Web3.Eth.GetContract(LiquidationAbi, _contractAddress);
+        var contract = web3.Eth.GetContract(Abi, liquidationContract);
         var function = contract.GetFunction("executeLiquidation");
 
         var debtToCoverWei = Web3.Convert.ToWei(debtToCoverHuman, debtDecimals);
@@ -51,6 +40,6 @@ public class LiquidationSender
             borrower, debtAsset, collateralAsset, debtToCoverWei
         );
 
-        Console.WriteLine($"✅ Liquidation Transaction Sent: {txHash}");
+        Console.WriteLine($"Liquidation Transaction Sent: {txHash}");
     }
 }

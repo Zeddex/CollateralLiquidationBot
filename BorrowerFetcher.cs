@@ -2,18 +2,9 @@
 using GraphQL.Client.Http;
 using GraphQL.Client.Serializer.Newtonsoft;
 
-public class BorrowerHealthFetcher
+public class BorrowerFetcher(string subgraphUrl, ITokenPriceProvider priceProvider, AaveDataProvider dataProvider)
 {
-    private readonly GraphQLHttpClient _client;
-    private readonly ITokenPriceProvider _priceProvider;
-    private readonly ILiquidationThresholdProvider _thresholdProvider;
-
-    public BorrowerHealthFetcher(string subgraphUrl, ITokenPriceProvider priceProvider, ILiquidationThresholdProvider thresholdProvider)
-    {
-        _client = new GraphQLHttpClient(subgraphUrl, new NewtonsoftJsonSerializer());
-        _priceProvider = priceProvider;
-        _thresholdProvider = thresholdProvider;
-    }
+    private readonly GraphQLHttpClient _client = new(subgraphUrl, new NewtonsoftJsonSerializer());
 
     public async Task<List<(string borrower, decimal healthFactor)>> FetchBorrowersWithHealthAsync(int pageSize = 100, int maxPages = 10)
     {
@@ -68,15 +59,18 @@ public class BorrowerHealthFetcher
                 {
                     if (!decimal.TryParse(deposit.Amount, out var amt) || amt == 0) continue;
 
-                    var price = await _priceProvider.GetPriceInEthAsync(deposit.Asset.Id);
-                    var threshold = await _thresholdProvider.GetLiquidationThresholdAsync(deposit.Asset.Id);
+                    var price = await priceProvider.GetPriceInEthAsync(deposit.Asset.Id);
+                    var reserveConfigData = await dataProvider.GetReserveConfigDataAsync(deposit.Asset.Id);
 
                     input.Deposits.Add(new TokenPosition
                     {
                         AssetAddress = deposit.Asset.Id,
                         Amount = amt,
                         PriceInEth = price,
-                        LiquidationThreshold = threshold
+                        LiquidationThreshold = (decimal)reserveConfigData.LiquidationThreshold / 10000m, // e.g., 8250 → 0.825
+                        IsActive = reserveConfigData.IsActive,
+                        IsFrozen = reserveConfigData.IsFrozen,
+                        UsageAsCollateral = reserveConfigData.UsageAsCollateralEnabled
                     });
                 }
 
@@ -84,7 +78,7 @@ public class BorrowerHealthFetcher
                 {
                     if (!decimal.TryParse(borrow.Amount, out var amt) || amt == 0) continue;
 
-                    var price = await _priceProvider.GetPriceInEthAsync(borrow.Asset.Id);
+                    var price = await priceProvider.GetPriceInEthAsync(borrow.Asset.Id);
 
                     input.Borrows.Add(new TokenPosition
                     {
@@ -105,6 +99,8 @@ public class BorrowerHealthFetcher
 
     public async Task<List<BorrowerReserveData>> FetchBorrowersAsync(int pageSize = 1000, int maxPages = 10)
     {
+        Console.WriteLine("Fetching data from subgraph...");
+
         var allBorrowers = new List<BorrowerReserveData>();
 
         for (int page = 0; page < maxPages; page++)
@@ -155,7 +151,7 @@ public class BorrowerHealthFetcher
                     allBorrowers.Add(parsed);
             }
 
-            Console.WriteLine($"Page {page + 1}: {accounts.Count} borrowers with debt");
+            //Console.WriteLine($"Page {page + 1}: {accounts.Count} borrowers with debt");
         }
 
         return allBorrowers;
