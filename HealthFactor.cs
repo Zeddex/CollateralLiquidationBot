@@ -1,10 +1,10 @@
 ﻿public class HealthFactor(ITokenPriceProvider priceProvider, AaveDataProvider dataProvider)
 {
-    public async Task<List<(string borrower, decimal healthFactor)>> GetBorrowersWithHealt(List<BorrowerAccount> borrowerAccs)
+    public async Task<Dictionary<string, decimal>> CalculateHealthFactorAsync(List<BorrowerAccount> borrowersAccs)
     {
-        var borrowersWithHealth = new List<(string, decimal)>();
+        var borrowersWithHealth = new Dictionary<string, decimal>();
 
-        foreach (var account in borrowerAccs)
+        foreach (var account in borrowersAccs)
         {
             var input = new HealthFactorInput
             {
@@ -47,7 +47,7 @@
             }
 
             var hf = CalculateHealthFactor(input);
-            borrowersWithHealth.Add((account.Id, hf));
+            borrowersWithHealth.Add(account.Id, hf);
         }
 
         return borrowersWithHealth;

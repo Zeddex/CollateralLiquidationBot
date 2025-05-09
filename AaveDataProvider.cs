@@ -23,18 +23,27 @@ public class AaveDataProvider(Web3 web3, string dataProviderAddress)
         'stateMutability':'view',
         'type':'function'
     }]";
-    public async Task<ReserveConfigurationDataDTO> GetReserveConfigDataAsync(string tokenAddress)
+
+    public async Task<Reserve> GetReserveConfigDataAsync(string tokenAddress)
     {
         var contract = web3.Eth.GetContract(Abi, dataProviderAddress);
         var func = contract.GetFunction("getReserveConfigurationData");
-        var data = await func.CallDeserializingToObjectAsync<ReserveConfigurationDataDTO>(tokenAddress);
+        var data = await func.CallDeserializingToObjectAsync<Reserve>(tokenAddress);
 
         return data;
+    }
+
+    bool IsCollateralEligible(Reserve reserve)
+    {
+        return reserve.IsActive &&
+               !reserve.IsFrozen &&
+               reserve.UsageAsCollateralEnabled &&
+               reserve.LiquidationThreshold > 0;
     }
 }
 
 [FunctionOutput]
-public class ReserveConfigurationDataDTO : IFunctionOutputDTO
+public class Reserve : IFunctionOutputDTO
 {
     [Parameter("uint256", "decimals")]
     public BigInteger Decimals { get; set; }

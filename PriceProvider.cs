@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using Nethereum.Web3;
 
-public class ChainlinkPriceProvider(Web3 web3, Dictionary<string, string> chainlinkFeeds) : ITokenPriceProvider
+public class PriceProvider(Web3 web3, Dictionary<string, string> chainlinkFeeds) : ITokenPriceProvider
 {
     private const string Abi = @"[
         { 

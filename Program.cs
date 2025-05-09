@@ -41,7 +41,7 @@ string aaveV3ArbitrumSubgraphUrl = $"https://gateway.thegraph.com/api/{thegraphA
 string aaveV3EthereumSubgraphUrl = $"https://gateway.thegraph.com/api/{thegraphApiKey}/subgraphs/id/JCNWRypm7FYwV8fx5HhzZPSFaMxgkPuw4TnR3Gpi81zk"; // https://thegraph.com/explorer/subgraphs/JCNWRypm7FYwV8fx5HhzZPSFaMxgkPuw4TnR3Gpi81zk
 string aaveV3PolygonSubgraphUrl = $"https://gateway.thegraph.com/api/{thegraphApiKey}/subgraphs/id/6yuf1C49aWEscgk5n9D1DekeG1BCk5Z9imJYJT3sVmAT"; // https://thegraph.com/explorer/subgraphs/6yuf1C49aWEscgk5n9D1DekeG1BCk5Z9imJYJT3sVmAT
 
-var priceProvider = new ChainlinkPriceProvider(web3Eth, new Dictionary<string, string> {
+var priceProvider = new PriceProvider(web3Eth, new Dictionary<string, string> {
     { "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "0x6Df09E975c830ECae5bd4eD9d90f3A95a4f88012" }, // AAVE → AAVE/ETH Chainlink feed
     { "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", "0xdeb288F737066589598e9214E782fa5A8eD689e8" }, // WBTC → BTC/ETH Chainlink feed
     { "0x6B175474E89094C44Da98b954EedeAC495271d0F", "0x773616E4d11A78F511299002da57A0a94577F1f4" }, // DAI → DAI/ETH Chainlink feed
@@ -52,10 +52,10 @@ var priceProvider = new ChainlinkPriceProvider(web3Eth, new Dictionary<string, s
 //decimal aaveEthPrice = await priceProvider.GetPriceInEthAsync("0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9");
 
 var dataProvider = new AaveDataProvider(web3Eth, aaveDataProviderEthereum);
+var healthFactor = new HealthFactor(priceProvider, dataProvider);
+var borrowFetcher = new BorrowerFetcher(aaveV3EthereumSubgraphUrl);
 
-var fetcher = new BorrowerFetcher(aaveV3EthereumSubgraphUrl);
-
-//var borrowers = await fetcher.FetchSortedBorrowersAsync();
+//var borrowers = await fetcher.FetchTopBorrowersAsync();
 //foreach (var b in borrowers)
 //{
 //    Console.WriteLine($"Borrower {b.Borrower} | Owes {b.DebtAmount} {b.DebtAssetSymbol}, collateral {b.CollateralAmount} {b.CollateralAssetSymbol}");
@@ -84,7 +84,8 @@ var liquidationExecutor = new LiquidationExecutor(
 );
 
 var monitor = new LiquidationMonitor(
-    fetcher,
+    borrowFetcher,
+    healthFactor,
     liquidationExecutor,
     gasManager,
     profitabilitySimulator,

@@ -6,7 +6,7 @@ public class BorrowerFetcher(string subgraphUrl)
 {
     private readonly GraphQLHttpClient _client = new(subgraphUrl, new NewtonsoftJsonSerializer());
 
-    public async Task<List<BorrowerReserveData>> FetchSortedBorrowersAsync(int pageSize = 1000, int maxPages = 10)
+    public async Task<List<BorrowerReserveData>> FetchTopBorrowersAsync(int pageSize = 1000, int maxPages = 10)
     {
         Console.WriteLine("Fetching data from subgraph...");
 
@@ -66,9 +66,11 @@ public class BorrowerFetcher(string subgraphUrl)
         return allBorrowers;
     }
 
-    public async Task<List<BorrowerAccount>> FetchBorrowersAsync(int pageSize = 100, int maxPages = 10)
+    public async Task<List<BorrowerAccount>> FetchBorrowersAsync(int pageSize = 1000, int maxPages = 10)
     {
-        var borrowerAccs = new List<BorrowerAccount>();
+        Console.WriteLine("Fetching data from subgraph...");
+
+        var allBorrowers = new List<BorrowerAccount>();
 
         for (int page = 0; page < maxPages; page++)
         {
@@ -106,14 +108,79 @@ public class BorrowerFetcher(string subgraphUrl)
 
             var response = await _client.SendQueryAsync<AccountResponse>(query);
 
-            var accounts = response.Data.Accounts;
-
-            if (accounts.Count == 0) break;
-
-            borrowerAccs.AddRange(accounts);
+            allBorrowers.AddRange(response.Data.Accounts);
         }
 
-        return borrowerAccs;
+        return allBorrowers;
+    }
+
+    public async Task<BorrowerAccount?> FetchBorrowerAccountByIdAsync(string borrowerAddress)
+    {
+        var query = new GraphQLRequest
+        {
+            Query = @"
+            {
+                accounts(
+                    where: {id: \"" + borrowerAddress + \""}
+                )   {
+                        id
+                        borrows {
+                            amount
+                            asset { id symbol }
+                        }
+                        deposits {
+                            amount
+                            asset { id symbol }
+                        }
+                    }
+            }"
+        };
+
+        var response = await _client.SendQueryAsync<AccountResponse>(query);
+
+        return response.Data.Accounts.FirstOrDefault();
+    }
+
+    public async Task<BorrowerReserveData?> FetchBorrowerAccountByIdParsedAsync(string borrowerAddress)
+    {
+        var query = new GraphQLRequest
+        {
+            Query = @"
+            {
+                accounts(
+                    where: {id: \"" + borrowerAddress + \""}
+                )   {
+                        id
+                        borrows {
+                            amount
+                            asset { id symbol }
+                        }
+                        deposits {
+                            amount
+                            asset { id symbol }
+                        }
+                    }
+            }"
+        };
+
+        var response = await _client.SendQueryAsync<AccountResponse>(query);
+        var parsed = ParseAccount(response.Data.Accounts.FirstOrDefault());
+
+        return parsed;
+    }
+
+    public List<BorrowerReserveData> ParseTopBorrowers(List<BorrowerAccount> borrowersAccounts)
+    {
+        var parsedBorrowers = new List<BorrowerReserveData>();
+
+        foreach (var account in borrowersAccounts)
+        {
+            var parsed = ParseAccount(account);
+            if (parsed != null)
+                parsedBorrowers.Add(parsed);
+        }
+
+        return parsedBorrowers;
     }
 
     private BorrowerReserveData? ParseAccount(BorrowerAccount account)
@@ -159,12 +226,14 @@ public class BorrowerAccount
     public List<Deposit> Deposits { get; set; }
 }
 
+// Debt
 public class Borrow
 {
     public string Amount { get; set; }
     public Asset Asset { get; set; }
 }
 
+// Collateral
 public class Deposit
 {
     public string Amount { get; set; }
@@ -189,5 +258,4 @@ public class BorrowerReserveData
     public decimal CollateralAmount { get; set; }
     public int DebtAssetDecimals { get; set; }
     public int CollateralAssetDecimals { get; set; }
-
 }

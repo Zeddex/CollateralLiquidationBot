@@ -1,40 +1,18 @@
 ﻿using System.Numerics;
 using Nethereum.Web3;
 
-public class LiquidationMonitor
+public class LiquidationMonitor(
+    BorrowerFetcher borrowerFetcher,
+    HealthFactor healthFactor,
+    LiquidationExecutor liquidationExecutor,
+    GasPriceManager gasManager,
+    ProfitabilitySimulator profitabilitySimulator,
+    DecimalsMap decimalsMap,
+    Notifier notifier,
+    int pageSize = 1000,
+    int maxPages = 10,
+    int refreshDelaySeconds = 60)
 {
-    private readonly BorrowerFetcher _borrowerFetcher;
-    private readonly LiquidationExecutor _liquidationExecutor;
-    private readonly GasPriceManager _gasManager;
-    private readonly ProfitabilitySimulator _profitabilitySimulator;
-    private readonly DecimalsMap _decimalsMap;
-    private readonly Notifier _notifier;
-    private readonly int _pageSize;
-    private readonly int _maxPages;
-    private readonly int _refreshDelaySeconds;
-
-    public LiquidationMonitor(
-        BorrowerFetcher borrowerFetcher, 
-        LiquidationExecutor liquidationExecutor,
-        GasPriceManager gasManager,
-        ProfitabilitySimulator profitabilitySimulator,
-        DecimalsMap decimalsMap,
-        Notifier notifier, 
-        int pageSize = 1000, 
-        int maxPages = 10, 
-        int refreshDelaySeconds = 60)
-    {
-        _borrowerFetcher = borrowerFetcher;
-        _liquidationExecutor = liquidationExecutor;
-        _gasManager = gasManager;
-        _profitabilitySimulator = profitabilitySimulator;
-        _decimalsMap = decimalsMap;
-        _notifier = notifier;
-        _pageSize = pageSize;
-        _maxPages = maxPages;
-        _refreshDelaySeconds = refreshDelaySeconds;
-    }
-
     public async Task StartMonitoringAsync(CancellationToken cancellationToken)
     {
         Console.WriteLine("Starting Liquidation Monitor...");
@@ -45,7 +23,10 @@ public class LiquidationMonitor
             {
                 Console.WriteLine($"Fetching and ranking dangerous borrowers at {DateTime.UtcNow}...");
 
-                var rankedBorrowers = await _borrowerFetcher.FetchSortedBorrowersAsync(_pageSize, _maxPages);
+                var borrowers = await borrowerFetcher.FetchBorrowersAsync(pageSize, maxPages);
+                var rankedBorrowers = borrowerFetcher.ParseTopBorrowers(borrowers);
+
+                var healthFactors = await healthFactor.CalculateHealthFactorAsync(borrowers);
 
                 if (rankedBorrowers.Count == 0)
                 {
@@ -57,8 +38,8 @@ public class LiquidationMonitor
 
                     foreach (var borrower in rankedBorrowers)
                     {
-                        decimal debtETH = Web3.Convert.FromWei(BigInteger.Parse(borrower.DebtAmount));
-                        decimal health = Web3.Convert.FromWei(BigInteger.Parse(borrower.HealthFactor));
+                        decimal debtETH = borrower.DebtAmount;
+                        decimal health = healthFactors[borrower.Borrower];
 
                         Console.WriteLine($"{borrower.Borrower} | Debt: {debtETH:F4} ETH | Health: {health:F4}");
 
@@ -76,7 +57,7 @@ public class LiquidationMonitor
                         }
 
                         // Fetch debt and collateral assets for borrower
-                        var borrowerReserveData = await _borrowerFetcher.FetchBorrowerReserveDataAsync(borrower.Id);
+                        var borrowerReserveData = await borrowerFetcher.FetchBorrowerAccountByIdParsedAsync(borrower.Borrower);
 
                         if (borrowerReserveData == null)
                         {
@@ -93,10 +74,10 @@ public class LiquidationMonitor
                             continue;
                         }
 
-                        int debtAssetDecimals = await _decimalsMap.GetDecimalsAsync(debtAssetAddress);
+                        int debtAssetDecimals = await decimalsMap.GetDecimalsAsync(debtAssetAddress);
 
                         // Calculate exact debt to cover
-                        BigInteger totalDebtWei = borrowerReserveData.TotalDebtWei;
+                        BigInteger totalDebtWei = new BigInteger(borrowerReserveData.DebtAmount);
                         BigInteger debtToCoverWei;
 
                         if (health < 0.95m) // Assume close factor threshold is 0.95
@@ -111,7 +92,7 @@ public class LiquidationMonitor
                         decimal debtToCover = Web3.Convert.FromWei(debtToCoverWei, debtAssetDecimals);
 
                         // Simulate profitability
-                        bool isProfitable = await _profitabilitySimulator.IsProfitableAsync(
+                        bool isProfitable = await profitabilitySimulator.IsProfitableAsync(
                             debtToCover,
                             debtAssetDecimals,
                             collateralAssetAddress,
@@ -120,14 +101,14 @@ public class LiquidationMonitor
 
                         if (!isProfitable)
                         {
-                            Console.WriteLine("❌ Not profitable, skipping liquidation.");
+                            Console.WriteLine("Not profitable, skipping liquidation.");
                             continue;
                         }
 
                         string alert = $"*Liquidation Opportunity!*\n{borrower.Borrower}\nDebt: {debtETH:F4} ETH\n❤Health Factor: {health:F4}";
-                        await _notifier.SendMessageAsync(alert);
+                        await notifier.SendMessageAsync(alert);
 
-                        await _liquidationExecutor.TriggerLiquidationAsync(
+                        await liquidationExecutor.TriggerLiquidationAsync(
                             borrower.Borrower,
                             debtAssetAddress,
                             collateralAssetAddress,
@@ -142,8 +123,8 @@ public class LiquidationMonitor
                 Console.WriteLine($"Error during monitoring: {ex.Message}");
             }
 
-            Console.WriteLine($"Sleeping for {_refreshDelaySeconds} seconds...\n");
-            await Task.Delay(TimeSpan.FromSeconds(_refreshDelaySeconds), cancellationToken);
+            Console.WriteLine($"Sleeping for {refreshDelaySeconds} seconds...\n");
+            await Task.Delay(TimeSpan.FromSeconds(refreshDelaySeconds), cancellationToken);
         }
     }
 }
